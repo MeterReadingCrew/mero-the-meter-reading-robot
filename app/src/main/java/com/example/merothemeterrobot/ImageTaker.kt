@@ -2,12 +2,18 @@ package com.example.merothemeterrobot
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
-import androidx.camera.core.*
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -19,7 +25,7 @@ class ImageTaker {
         private var imageCapture: ImageCapture? = null
 
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private const val TAG = "CameraXBasic"
+        const val TAG = "CameraXBasic"
 
         public fun getInstance(): ImageTaker {
             instance = ImageTaker()
@@ -32,8 +38,7 @@ class ImageTaker {
 
     }
 
-    constructor() {
-    }
+    private var selectedBitmap: Bitmap? = null
 
     public fun takePhoto(context: Context, imageCapture: ImageCapture, freeCamera: Boolean) {
 
@@ -48,7 +53,7 @@ class ImageTaker {
 
         // Set up image capture listener, which is triggered after photo has
         // been taken
-        imageCapture.flashMode = ImageCapture.FLASH_MODE_ON
+        //imageCapture.flashMode = ImageCapture.FLASH_MODE_ON
         imageCapture.takePicture(
                 outputOptions, ContextCompat.getMainExecutor(context), object : ImageCapture.OnImageSavedCallback {
             override fun onError(exc: ImageCaptureException) {
@@ -74,7 +79,28 @@ class ImageTaker {
                     LocalBroadcastManager.getInstance(context)
                         .sendBroadcast(intent)
                 }
+
+                recognizeText(context, photoFile)
             }
         })
+    }
+
+    private fun recognizeText(context: Context, file: File) {
+        //val selectedImage = BitmapFactory.decodeFile(file.absolutePath)
+        val inputImage : InputImage = InputImage.fromFilePath(context, file.toUri())
+        val recognizer : TextRecognizer = TextRecognition.getClient()
+        recognizer.process(inputImage)
+            .addOnSuccessListener {
+                // show image in image view
+                val intent = Intent(context, MainActivity::class.java)
+                    .setAction("BROADCAST_TEXT_RECOGNIZED")
+                    .putExtra("recognizedText", it.text)
+                LocalBroadcastManager.getInstance(context)
+                    .sendBroadcast(intent)
+                Log.d(ImageTaker.TAG, "text recognition successful")
+            }
+            .addOnFailureListener {
+                Log.d(ImageTaker.TAG, "text recognition failed")
+            }
     }
 }

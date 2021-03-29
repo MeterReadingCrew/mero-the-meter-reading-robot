@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -32,14 +33,20 @@ class MainActivity() : AppCompatActivity() {
     lateinit var imageTaker : ImageTaker
     lateinit var imageView: ImageView
     lateinit var viewFinder : PreviewView
+    lateinit var ocrText : TextView
 
     val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 "BROADCAST_SHOW_LAST_PHOTO" -> showImage( intent.getStringExtra("imgName") )
                 "BROADCAST_CAMERA_FREE_AGAIN" -> startCamera()
+                "BROADCAST_TEXT_RECOGNIZED" -> showText( intent.getStringExtra("recognizedText") )
             }
         }
+    }
+
+    private fun showText(recognizedText: String?) {
+        ocrText.text = recognizedText
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +57,8 @@ class MainActivity() : AppCompatActivity() {
 
         viewFinder = findViewById(R.id.viewFinder)
 
+        ocrText = findViewById(R.id.recognizedText)
+
         outputDirectory = getOutputDirectory()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -59,6 +68,7 @@ class MainActivity() : AppCompatActivity() {
         val filter = IntentFilter()
         filter.addAction("BROADCAST_SHOW_LAST_PHOTO")
         filter.addAction("BROADCAST_CAMERA_FREE_AGAIN")
+        filter.addAction("BROADCAST_TEXT_RECOGNIZED")
         LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver, filter )
 
         // get reference to button
