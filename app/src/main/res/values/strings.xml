@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MeRo The Meter Robot</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="last_meter_image">last meter image</string>
+    <string name="test">Test</string>
+</resources>
