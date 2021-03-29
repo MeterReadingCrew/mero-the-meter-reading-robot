@@ -1,32 +1,25 @@
 package com.example.merothemeterrobot
 
 import android.Manifest
-import android.app.Notification
-import android.content.ActivityNotFoundException
-import android.content.Intent
+import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.net.Uri
+import android.graphics.BitmapFactory
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
-import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import kotlinx.android.synthetic.main.activity_main.*
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.File
 import java.nio.ByteBuffer
-import java.text.SimpleDateFormat
-import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -34,12 +27,20 @@ typealias LumaListener = (luma: Double) -> Unit
 
 class MainActivity() : AppCompatActivity() {
 
-    private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
 
+    lateinit var imageTaker : ImageTaker
     lateinit var imageView: ImageView
     lateinit var viewFinder : PreviewView
-    private var imageCapture: ImageCapture? = null
+
+    val broadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "BROADCAST_SHOW_LAST_PHOTO" -> showImage( intent.getStringExtra("imgName") )
+                "BROADCAST_CAMERA_FREE_AGAIN" -> startCamera()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +54,12 @@ class MainActivity() : AppCompatActivity() {
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
+        imageTaker = ImageTaker.getInstance()
+
+        val filter = IntentFilter()
+        filter.addAction("BROADCAST_SHOW_LAST_PHOTO")
+        filter.addAction("BROADCAST_CAMERA_FREE_AGAIN")
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver, filter )
 
         // get reference to button
         val testButton = findViewById<Button>(R.id.testButton)
@@ -80,6 +87,7 @@ class MainActivity() : AppCompatActivity() {
             ActivityCompat.requestPermissions(
                     this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
+
     }
 
     override fun onDestroy() {
@@ -109,13 +117,13 @@ class MainActivity() : AppCompatActivity() {
             imageCapture = ImageCapture.Builder()
                     .build()
 
-            val imageAnalyzer = ImageAnalysis.Builder()
+            /*val imageAnalyzer = ImageAnalysis.Builder()
                     .build()
                     .also {
                         it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
                             Log.d(TAG, "Average luminosity: $luma")
                         })
-                    }
+                    }*/
 
             // Select back camera as a default
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -137,37 +145,18 @@ class MainActivity() : AppCompatActivity() {
 
     private fun takePhoto() {
         // Get a stable reference of the modifiable image capture use case
-        val imageCapture = imageCapture ?: return
+        imageTaker.takePhoto(this, imageCapture!!, false)
+    }
 
-        // Create time-stamped output file to hold the image
-        val photoFile = File(
-                outputDirectory,
-                SimpleDateFormat(FILENAME_FORMAT, Locale.US
-                ).format(System.currentTimeMillis()) + ".jpg")
-
-        // Create output options object which contains file + metadata
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-        // Set up image capture listener, which is triggered after photo has
-        // been taken
-        imageCapture.takePicture(
-                outputOptions, ContextCompat.getMainExecutor(this), object : ImageCapture.OnImageSavedCallback {
-            override fun onError(exc: ImageCaptureException) {
-                Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-            }
-
-            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                val savedUri = Uri.fromFile(photoFile)
-                val msg = "Photo capture succeeded: $savedUri"
-                Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
-                Log.d(TAG, msg)
-            }
-        })
+    private fun showImage(imagePath: String) {
+        // show image in image view
+        val myBitmap = BitmapFactory.decodeFile(imagePath)
+        imageView.setImageBitmap(myBitmap)
     }
 
     private fun getOutputDirectory(): File {
         val mediaDir = externalMediaDirs.firstOrNull()?.let {
-            File(it, resources.getString(R.string.app_name)).apply { mkdirs() } }
+            File(it, resources.getString(R.string.output_dir)).apply { mkdirs() } }
         return if (mediaDir != null && mediaDir.exists())
             mediaDir else filesDir
     }
@@ -194,8 +183,10 @@ class MainActivity() : AppCompatActivity() {
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-        private const val TAG = "CameraXBasic"
+        private const val TAG = "MeRoMainActivity"
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
+        public var imageCapture: ImageCapture? = null
+        public lateinit var outputDirectory: File
     }
 
     private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {

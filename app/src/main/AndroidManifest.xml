@@ -17,6 +17,12 @@
             </intent-filter>
         </activity>
         <service android:name=".ForegroundService" />
+
+        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
+        <receiver android:name="Receiver" ></receiver>
+
     </application>
 
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
