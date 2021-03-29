@@ -35,32 +35,6 @@ class ImageTaker {
     constructor() {
     }
 
-
-    /*private fun getImageCapture(context: LifecycleOwner) {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-
-        cameraProviderFuture.addListener(Runnable {
-            // Used to bind the lifecycle of cameras to the lifecycle owner
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-
-            // Select back camera as a default
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-            try {
-                // Unbind use cases before rebinding
-                cameraProvider.unbindAll()
-
-                // Bind use cases to camera
-                cameraProvider.bindToLifecycle(
-                        context, cameraSelector, MainActivity.imageCapture /*, imageAnalyzer*/)
-
-            } catch(exc: Exception) {
-                Log.e(MainActivity.TAG, "Use case binding failed", exc)
-            }
-
-        }, ContextCompat.getMainExecutor(this))
-    }*/
-
     public fun takePhoto(context: Context, imageCapture: ImageCapture, freeCamera: Boolean) {
 
         // Create time-stamped output file to hold the image
@@ -74,6 +48,7 @@ class ImageTaker {
 
         // Set up image capture listener, which is triggered after photo has
         // been taken
+        imageCapture.flashMode = ImageCapture.FLASH_MODE_ON
         imageCapture.takePicture(
                 outputOptions, ContextCompat.getMainExecutor(context), object : ImageCapture.OnImageSavedCallback {
             override fun onError(exc: ImageCaptureException) {
